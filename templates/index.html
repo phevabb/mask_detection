@@ -1,0 +1,249 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Face Mask Detection</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        /* --- your existing styles unchanged --- */
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+        body { background: linear-gradient(135deg, #1a2a6c, #b21f1f, #fdbb2d); color: white; min-height: 100vh; padding: 20px; }
+        .container { max-width: 1200px; margin: 0 auto; }
+        header { text-align: center; padding: 20px 0; margin-bottom: 30px; }
+        h1 { font-size: 2.5rem; margin-bottom: 10px; text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3); }
+        .subtitle { font-size: 1.2rem; opacity: 0.9; max-width: 600px; margin: 0 auto; }
+        .dashboard { display: flex; flex-wrap: wrap; gap: 30px; justify-content: center; margin-bottom: 30px; }
+        .card { background: rgba(255, 255, 255, 0.1); backdrop-filter: blur(10px); border-radius: 15px; padding: 20px;
+                box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2); border: 1px solid rgba(255, 255, 255, 0.1); flex: 1; min-width: 300px; max-width: 640px; }
+        .card-header { display: flex; align-items: center; margin-bottom: 15px; padding-bottom: 10px; border-bottom: 1px solid rgba(255, 255, 255, 0.2); }
+        .card-header i { font-size: 1.5rem; margin-right: 10px; color: #4dabf7; }
+        .card-header h2 { font-size: 1.5rem; }
+        .video-container { position: relative; width: 100%; border-radius: 10px; overflow: hidden; }
+        video, canvas { width: 100%; height: auto; border-radius: 10px; display: block; }
+        canvas { position: absolute; top: 0; left: 0; pointer-events: none; }
+        .status-indicator { display: flex; align-items: center; justify-content: center; margin-top: 15px; padding: 10px; border-radius: 10px; background: rgba(0, 0, 0, 0.2); }
+        .status-dot { width: 12px; height: 12px; border-radius: 50%; margin-right: 10px; background: #4CAF50; animation: pulse 2s infinite; }
+        .status-text { font-weight: 500; }
+        .stats { display: flex; justify-content: space-between; margin-top: 20px; }
+        .stat-item { text-align: center; flex: 1; }
+        .stat-value { font-size: 1.8rem; font-weight: bold; color: #4dabf7; }
+        .stat-label { font-size: 0.9rem; opacity: 0.8; }
+        .controls { display: flex; justify-content: center; gap: 15px; margin-top: 20px; }
+        button { background: rgba(255, 255, 255, 0.2); border: none; color: white; padding: 12px 25px; border-radius: 50px; cursor: pointer; font-weight: 600; display: flex; align-items: center; gap: 8px; transition: all 0.3s ease; }
+        button:hover { background: rgba(255, 255, 255, 0.3); transform: translateY(-2px); }
+        button i { font-size: 1.1rem; }
+        .instructions { margin-top: 30px; background: rgba(255, 255, 255, 0.1); border-radius: 15px; padding: 20px; max-width: 800px; margin-left: auto; margin-right: auto; }
+        .instructions h3 { margin-bottom: 15px; display: flex; align-items: center; gap: 10px; }
+        .instructions ul { padding-left: 20px; }
+        .instructions li { margin-bottom: 10px; line-height: 1.5; }
+        footer { text-align: center; margin-top: 40px; padding-top: 20px; border-top: 1px solid rgba(255, 255, 255, 0.2); font-size: 0.9rem; opacity: 0.7; }
+        @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.5; } 100% { opacity: 1; } }
+        @media (max-width: 768px) { .dashboard { flex-direction: column; align-items: center; } .card { width: 100%; } h1 { font-size: 2rem; } }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>Face Mask Detection</h1>
+            <p class="subtitle">Real-time AI-powered face mask detection to help ensure safety protocols</p>
+        </header>
+
+        <div class="dashboard">
+            <div class="card">
+                <div class="card-header">
+                    <i class="fas fa-camera"></i>
+                    <h2>Live Detection Feed</h2>
+                </div>
+                <div class="video-container">
+                    <video id="video" autoplay muted></video>
+                    <canvas id="canvas"></canvas>
+                </div>
+                <div class="status-indicator">
+                    <div class="status-dot"></div>
+                    <div class="status-text" id="status">Camera Active - Detection Running</div>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-header">
+                    <i class="fas fa-search"></i>
+                    <h2>Detection Stats</h2>
+                </div>
+                <div class="stats">
+                    <div class="stat-item">
+                        <div class="stat-value" id="accuracy">98%</div>
+                        <div class="stat-label">Accuracy</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-value" id="processing-time">0ms</div>
+                        <div class="stat-label">Processing Time</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-value" id="fps">0</div>
+                        <div class="stat-label">FPS</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="controls">
+            <button id="captureBtn">
+                <i class="fas fa-camera-retro"></i>
+                Capture Image
+            </button>
+            <button id="toggleDetection">
+                <i class="fas fa-pause-circle"></i>
+                Pause Detection
+            </button>
+            <button id="settingsBtn">
+                <i class="fas fa-cog"></i>
+                Settings
+            </button>
+        </div>
+
+        <div class="instructions">
+            <h3><i class="fas fa-info-circle"></i> How It Works</h3>
+            <ul>
+                <li>Allow camera access to start detection.</li>
+                <li>Faces are automatically detected with mask/no-mask labels.</li>
+                <li>Green rectangles indicate a mask; red indicates no mask.</li>
+                <li>Use controls to pause detection or capture a snapshot.</li>
+                <li>For best results, ensure good lighting and face the camera directly.</li>
+            </ul>
+        </div>
+
+        <footer>
+            <p>Face Mask Detection System &copy; 2025 | AI-Powered Safety Solution</p>
+        </footer>
+    </div>
+
+    <script>
+        const video = document.getElementById('video');
+        const canvas = document.getElementById('canvas');
+        const ctx = canvas.getContext('2d');
+        const status = document.getElementById('status');
+        const processingTime = document.getElementById('processing-time');
+        const fps = document.getElementById('fps');
+
+        canvas.width = 640;
+        canvas.height = 480;
+
+        let isProcessing = false;
+        let isDetectionRunning = true;
+        let frameCount = 0;
+        let startTime = Date.now();
+
+        // --- New variables for persistence ---
+        let lastDetections = [];
+        let lastUpdateTime = 0;
+        const displayDuration = 2000; // ms to keep detections
+
+        // Access webcam
+        navigator.mediaDevices.getUserMedia({ video: { width: 640, height: 480 } })
+            .then(stream => {
+                video.srcObject = stream;
+                status.textContent = 'Camera Active - Detection Running';
+                status.style.color = 'white';
+            })
+            .catch(err => {
+                console.error('Error accessing webcam:', err);
+                status.textContent = 'Error accessing webcam';
+                status.style.color = 'red';
+            });
+
+        async function processFrame() {
+            if (!isDetectionRunning || isProcessing) return;
+            isProcessing = true;
+
+            const frameStartTime = Date.now();
+            try {
+                ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+                const imageData = canvas.toDataURL('image/jpeg', 0.6);
+                const response = await fetch('/process_frame/', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ image: imageData })
+                });
+                const data = await response.json();
+
+                // Draw video frame
+                ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+                if (data.faces && data.faces.length > 0) {
+                    lastDetections = data.faces;
+                    lastUpdateTime = Date.now();
+                }
+
+                // --- Use last detections if within displayDuration ---
+                if (Date.now() - lastUpdateTime < displayDuration && lastDetections.length > 0) {
+                    lastDetections.forEach(face => {
+                        const { x, y, w, h, label } = face;
+                        ctx.strokeStyle = label === 'mask' ? 'green' : 'red';
+                        ctx.lineWidth = 2;
+                        ctx.strokeRect(x, y, w, h);
+                        ctx.fillStyle = label === 'mask' ? 'green' : 'red';
+                        ctx.fillRect(x, y - 40, w, 40);
+                        ctx.fillStyle = 'white';
+                        ctx.font = '20px Arial';
+                        ctx.fillText(label, x + 10, y - 10);
+                    });
+                    status.textContent = `Detected ${lastDetections.length} face${lastDetections.length > 1 ? 's' : ''}`;
+                    status.style.color = 'white';
+                } else {
+                    status.textContent = 'No faces detected - adjust position or lighting';
+                    status.style.color = 'yellow';
+                }
+
+                // Update stats
+                const frameTime = Date.now() - frameStartTime;
+                processingTime.textContent = `${frameTime}ms`;
+                frameCount++;
+                const elapsed = (Date.now() - startTime) / 1000;
+                fps.textContent = (frameCount / elapsed).toFixed(1);
+            } catch (err) {
+                console.error('Fetch error:', err);
+                status.textContent = 'Network error';
+                status.style.color = 'red';
+            } finally {
+                isProcessing = false;
+            }
+        }
+
+        // Run every 500ms to reduce lag
+        const intervalId = setInterval(processFrame, 500);
+
+        // Controls
+        document.getElementById('captureBtn').addEventListener('click', () => {
+            const link = document.createElement('a');
+            link.href = canvas.toDataURL('image/jpeg');
+            link.download = 'face_mask_snapshot.jpg';
+            link.click();
+        });
+
+        document.getElementById('toggleDetection').addEventListener('click', function () {
+            const button = this;
+            const icon = button.querySelector('i');
+            isDetectionRunning = !isDetectionRunning;
+            if (isDetectionRunning) {
+                icon.classList.remove('fa-play-circle');
+                icon.classList.add('fa-pause-circle');
+                button.innerHTML = '<i class="fas fa-pause-circle"></i> Pause Detection';
+                status.textContent = 'Camera Active - Detection Running';
+                status.style.color = 'white';
+            } else {
+                icon.classList.remove('fa-pause-circle');
+                icon.classList.add('fa-play-circle');
+                button.innerHTML = '<i class="fas fa-play-circle"></i> Resume Detection';
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                status.textContent = 'Detection Paused';
+                status.style.color = 'yellow';
+            }
+        });
+
+        document.getElementById('settingsBtn').addEventListener('click', () => {
+            alert('Settings: Adjust lighting, face position, or camera resolution for better detection.');
+        });
+    </script>
+</body>
+</html>
